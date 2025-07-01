@@ -7,11 +7,8 @@ on:
       - release/*
       - test-ci
 
-# Workflow env variables not yet available at job level
-# See https://github.community/t/how-to-set-and-access-a-workflow-variable/17335/14
-# Can work around to some degree using set-env
 env:
-  NAME: yt_clipper
+  NAME: nv_clipper
   VERSION: '5.32.0'
 
 jobs:
@@ -19,32 +16,17 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     strategy:
       max-parallel: 4
       matrix:
         node-version: ['20.16.x']
-        os: [windows-latest, macos-13]
-        include:
-          - os: windows-latest
-            shortos: win
-            ffmpeg_dl_name: ffmpeg-7.1-full_build-shared
-            ffmpeg_dl_prefix: 'https://github.com/GyanD/codexffmpeg/releases/download/7.1'
-            yt-dlp_download_url: 'https://github.com/yt-dlp/yt-dlp/releases/download/2024.10.07/yt-dlp.exe'
-          - os: macos-13
-            shortos: macos
-            ffmpeg_dl_url: 'https://evermeet.cx/ffmpeg/ffmpeg-7.1.7z'
-            ffprobe_dl_url: 'https://evermeet.cx/ffmpeg/ffprobe-7.1.7z'
-            ffplay_dl_url: 'https://evermeet.cx/ffmpeg/ffplay-7.1.7z'
-            ffmpeg_info_url: 'https://evermeet.cx/ffmpeg/info/7.1'
-            yt-dlp_download_url: 'https://github.com/yt-dlp/yt-dlp/releases/download/2024.10.07/yt-dlp_macos'
-
     steps:
-      - name: Set env
+      - name: Set derived environment variables
         shell: bash
         run: |
-          echo "FULL_NAME=${{env.NAME}}_${{matrix.shortos}}_${{env.VERSION}}" >> $GITHUB_ENV
-          echo "NOPLAT_NAME=${{env.NAME}}_${{env.VERSION}}" >> $GITHUB_ENV
+          echo "WIN_ARTIFACT_NAME=${NAME}_win_${VERSION}" >> $GITHUB_ENV
+          echo "JS_ARTIFACT_NAME=${NAME}_${VERSION}.js" >> $GITHUB_ENV
 
       - uses: actions/checkout@v3
         with:
@@ -53,47 +35,19 @@ jobs:
       - name: Set up dirs
         shell: bash
         run: |
-          mkdir -p ./artifact/py/${{env.FULL_NAME}}/{webms,bin,temp}/
+          mkdir -p ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}/{webms,bin,temp}/
           mkdir -p ./bindeps
 
       - name: Download ffmpeg dependency (windows)
-        if: matrix.os == 'windows-latest'
         shell: bash
         run: |
           cd ./bindeps
-          curl -o ./ffmpeg.zip -L ${{ format('{0}/{1}.7z', matrix.ffmpeg_dl_prefix, matrix.ffmpeg_dl_name) }}
+          curl -o ./ffmpeg.zip -L https://github.com/GyanD/codexffmpeg/releases/download/7.1/ffmpeg-7.1-full_build-shared.7z
           7z x ./ffmpeg.zip
-          mv ./${{matrix.ffmpeg_dl_name}} ffmpeg
+          mv ./ffmpeg-7.1-full_build-shared ffmpeg
 
           ./ffmpeg/bin/ffmpeg -version > version.txt
           mv version.txt ffmpeg
-
-          ls -laR
-
-      - name: Download ffmpeg dependency (macos)
-        if: matrix.shortos == 'macos'
-        shell: bash
-        run: |
-          cd ./bindeps
-          mkdir temp
-          cd temp
-
-          curl -o ./ffmpeg.7z -L ${{matrix.ffmpeg_dl_url}}
-          curl -o ./ffprobe.7z -L ${{matrix.ffprobe_dl_url}}
-          curl -o ./ffplay.7z -L ${{matrix.ffplay_dl_url}}
-          curl -o version.txt -L ${{matrix.ffmpeg_info_url}}
-
-          7z x ./ffmpeg.7z
-          7z x ./ffprobe.7z
-          7z x ./ffplay.7z
-
-          cd ..
-
-          mkdir -p ffmpeg/bin
-
-          mv temp/ffmpeg temp/ffprobe temp/ffplay ffmpeg/bin
-          chmod -v +x ffmpeg/bin/*
-          mv temp/version.txt ffmpeg
 
           ls -laR
 
@@ -103,7 +57,7 @@ jobs:
           cd ./bindeps
           mkdir -p yt-dlp/bin
           cd yt-dlp/bin
-          curl -O -L ${{ matrix.yt-dlp_download_url }}
+          curl -O -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe
 
           chmod -v +x *
 
@@ -124,7 +78,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: node_modules
-          key: yarn-${{ matrix.os }}-${{ hashFiles('**/yarn.lock') }}
+          key: yarn-windows-latest-${{ hashFiles('**/yarn.lock') }}
       - run: yarn install --frozen-lockfile
 
       - run: just bundle-prod
@@ -158,90 +112,74 @@ jobs:
       - name: Copy artifacts
         shell: bash
         run: |
-          mv ./bindeps/ffmpeg/bin/* ./artifact/py/${{env.FULL_NAME}}/bin/
-          mv ./bindeps/ffmpeg/*.txt ./artifact/py/${{env.FULL_NAME}}/bin/
-          mv ./bindeps/yt-dlp/bin/* ./artifact/py/${{env.FULL_NAME}}/bin/
+          mv ./bindeps/ffmpeg/bin/* ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}/bin/
+          mv ./bindeps/ffmpeg/*.txt ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}/bin/
+          mv ./bindeps/yt-dlp/bin/* ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}/bin/
 
-          cp ./src/clipper/include/* ./artifact/py/${{env.FULL_NAME}}/
-          cp ./src/clipper/${{matrix.shortos}}_helpers/* ./artifact/py/${{env.FULL_NAME}}/
-          mkdir -p ./artifact/py/${{env.FULL_NAME}}/yt-dlp-plugins/ytc
-          cp -R ./src/clipper/yt-dlp-plugins/ytc/ ./artifact/py/${{env.FULL_NAME}}/yt-dlp-plugins/
-          cp ./dist/py/yt_clipper* ./artifact/py/${{env.FULL_NAME}}/
+          cp ./src/clipper/include/* ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}/
+          cp ./src/clipper/win_helpers/* ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}/
+          mkdir -p ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}/yt-dlp-plugins/ytc
+          cp -R ./src/clipper/yt-dlp-plugins/ytc/ ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}/yt-dlp-plugins/
+          cp ./dist/py/yt_clipper* ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}/
 
       - name: Print clipper install version (windows)
-        if: matrix.os == 'windows-latest'
         run: |
           ./dist/py/yt_clipper.exe --version
 
-      - name: Print clipper install version (non-windows)
-        if: matrix.os != 'windows-latest'
-        run: |
-          ./dist/py/yt_clipper --version
-
-      - name: Copy artifacts (markup)
-        if: matrix.shortos == 'macos'
-        shell: bash
-        run: |
-          mkdir -p ./artifact/js/
-          cp ./dist/js/yt_clipper.js ./artifact/js/${{env.NOPLAT_NAME}}.js
-
       - name: Zip artifacts on windows
-        if: matrix.os == 'windows-latest'
         shell: powershell
         run: |
-          Compress-Archive ./artifact/py/${{env.FULL_NAME}}/ ./artifact/py/${{env.FULL_NAME}}.zip
-
-      - name: Zip artifacts on non-windows systems
-        if: matrix.os != 'windows-latest'
-        run: |
-          cd ./artifact/py
-          zip -r ${{env.FULL_NAME}}.zip ./${{env.FULL_NAME}}/
+          Compress-Archive ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}/ ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}.zip
 
       - name: Upload clipper script installation artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{env.FULL_NAME}}.zip
-          path: ./artifact/py/${{env.FULL_NAME}}.zip
+          name: ${{ env.NAME }}_win_${{ env.VERSION }}
+          path: ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}.zip
+
+      - name: Rename JS bundle for artifact upload
+        run: cp ./dist/js/yt_clipper.js ./dist/js/${{ env.NAME }}_${{ env.VERSION }}.js
 
       - name: Upload markup script installation artifact
-        if: matrix.shortos == 'macos'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{env.NOPLAT_NAME}}.js
-          path: ./artifact/js/${{env.NOPLAT_NAME}}.js
+          name: ${{ env.NAME }}_${{ env.VERSION }}.js
+          path: ./dist/js/${{ env.NAME }}_${{ env.VERSION }}.js
 
   release:
     needs: build
-    runs-on: macos-13
-
+    runs-on: windows-latest
     steps:
-      - name: Set env
+      - name: Set derived environment variables
+        shell: bash
         run: |
-          echo "DATE=$(date +'%Y.%m.%d')" >> $GITHUB_ENV
-          echo "FULL_NAME=${{env.NAME}}_${{env.VERSION}}" >> $GITHUB_ENV
-          echo "FULL_NAME_WIN=${{env.NAME}}_win_${{env.VERSION}}" >> $GITHUB_ENV
-          echo "FULL_NAME_MAC=${{env.NAME}}_macos_${{env.VERSION}}" >> $GITHUB_ENV
+          echo "WIN_ARTIFACT_NAME=${NAME}_win_${VERSION}" >> $GITHUB_ENV
+          echo "JS_ARTIFACT_NAME=${NAME}_${VERSION}.js" >> $GITHUB_ENV
+
+      - name: Set date for release
+        id: set_env
+        shell: bash
+        run: |
+          echo "date=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
 
       - uses: actions/download-artifact@v4
         with:
-          name: ${{env.FULL_NAME_WIN}}.zip
+          name: ${{ env.NAME }}_win_${{ env.VERSION }}
+          path: ./
 
       - uses: actions/download-artifact@v4
         with:
-          name: ${{env.FULL_NAME_MAC}}.zip
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: ${{env.FULL_NAME}}.js
+          name: ${{ env.NAME }}_${{ env.VERSION }}.js
+          path: ./
 
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{env.VERSION}}
-          release_name: ${{env.NAME}} v${{env.VERSION}} [${{env.DATE}}]
+          tag_name: v${{ env.VERSION }}
+          release_name: ${{ env.NAME }} v${{ env.VERSION }} [${{ steps.set_env.outputs.date }}]
           draft: true
           prerelease: false
 
@@ -249,31 +187,20 @@ jobs:
         id: upload-release-asset-win
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{steps.create_release.outputs.upload_url}}
-          asset_path: ${{env.FULL_NAME_WIN}}.zip
-          asset_name: ${{env.FULL_NAME_WIN}}.zip
-          asset_content_type: application/zip
-
-      - name: Upload release asset (mac)
-        id: upload-release-asset-mac
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-        with:
-          upload_url: ${{steps.create_release.outputs.upload_url}}
-          asset_path: ${{env.FULL_NAME_MAC}}.zip
-          asset_name: ${{env.FULL_NAME_MAC}}.zip
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.NAME }}_win_${{ env.VERSION }}.zip
+          asset_name: ${{ env.NAME }}_win_${{ env.VERSION }}.zip
           asset_content_type: application/zip
 
       - name: Upload release asset (markup)
         id: upload-release-asset-markup
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{steps.create_release.outputs.upload_url}}
-          asset_path: ${{env.FULL_NAME}}.js
-          asset_name: ${{env.FULL_NAME}}.js
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path:  ${{ env.NAME }}_${{ env.VERSION }}.js
+          asset_name: ${{ env.NAME }}_${{ env.VERSION }}.js
           asset_content_type: text/javascript

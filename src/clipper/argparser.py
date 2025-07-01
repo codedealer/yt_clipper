@@ -89,7 +89,7 @@ def getArgParser() -> argparse.ArgumentParser:
                   NOTSET = 0;
                 """,
             ],
-        )
+        ),
     )
     logging_options.add_argument(
         "--no-rich-logs",

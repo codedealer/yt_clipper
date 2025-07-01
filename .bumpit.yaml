@@ -6,7 +6,7 @@ strategy:
 commit:
   author: "foo <bar>"
 tag:
-  apply: False
+  apply: True
   format: "v{version}"
 auto_remote_push: False # or False
 tracked_files:
