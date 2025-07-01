@@ -13,136 +13,97 @@ env:
 
 jobs:
   build:
-    defaults:
-      run:
-        shell: bash
     runs-on: windows-latest
-    strategy:
-      max-parallel: 4
-      matrix:
-        node-version: ['20.16.x']
     steps:
-      - name: Set FULL_NAME
+      - uses: actions/checkout@v4
+
+      - name: Set derived environment variables
         shell: bash
         run: |
-          echo "FULL_NAME=${NAME}_win_${VERSION}" >> $GITHUB_ENV
+          echo "WIN_ARTIFACT_NAME=${NAME}_win_${VERSION}" >> $GITHUB_ENV
+          echo "JS_ARTIFACT_NAME=${NAME}_${VERSION}.js" >> $GITHUB_ENV
 
-      - name: Set env
+      - name: Debug environment variables
         shell: bash
         run: |
-          echo "NOPLAT_NAME=${NAME}_${VERSION}" >> $GITHUB_ENV
+          echo "NAME: $NAME"
+          echo "VERSION: $VERSION"
+          echo "WIN_ARTIFACT_NAME: $WIN_ARTIFACT_NAME"
+          echo "JS_ARTIFACT_NAME: $JS_ARTIFACT_NAME"
 
-      - uses: actions/checkout@v3
+      - name: Setup directories
+        shell: bash
+        run: |
+          mkdir -p ./artifact/py/${NAME}_win_${VERSION}/{webms,bin,temp}/
+
+      - name: Setup python
+        uses: actions/setup-python@v5
         with:
-          persist-credentials: false
+          python-version: 3.12
+          cache: pip
 
-      - name: Set up dirs
+      - name: Install python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e .
+
+      - name: Set up FFmpeg
         shell: bash
         run: |
-          mkdir -p ./artifact/py/${{ env.FULL_NAME }}/{webms,bin,temp}/
-          mkdir -p ./bindeps
+          curl -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n6.0-latest-win64-lgpl-6.0.zip -o ffmpeg.zip
+          7z x ffmpeg.zip -o./bindeps/ffmpeg
+          mv ./bindeps/ffmpeg/ffmpeg-n6.0-latest-win64-lgpl-6.0/* ./bindeps/ffmpeg/
+          rm -rf ./bindeps/ffmpeg/ffmpeg-n6.0-latest-win64-lgpl-6.0
 
-      - name: Download ffmpeg dependency (windows)
+      - name: Set up yt-dlp
         shell: bash
         run: |
-          cd ./bindeps
-          curl -o ./ffmpeg.zip -L https://github.com/GyanD/codexffmpeg/releases/download/7.1/ffmpeg-7.1-full_build-shared.7z
-          7z x ./ffmpeg.zip
-          mv ./ffmpeg-7.1-full_build-shared ffmpeg
+          mkdir -p ./bindeps/yt-dlp/bin
+          curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe -o ./bindeps/yt-dlp/bin/yt-dlp.exe
 
-          ./ffmpeg/bin/ffmpeg -version > version.txt
-          mv version.txt ffmpeg
-
-          ls -laR
-
-      - name: Download yt-dlp dependency
-        shell: bash
-        run: |
-          cd ./bindeps
-          mkdir -p yt-dlp/bin
-          cd yt-dlp/bin
-          curl -O -L https://github.com/yt-dlp/yt-dlp/releases/download/2024.10.07/yt-dlp.exe
-
-          chmod -v +x *
-
-          ls -laR
-
-      - name: Setup just
-        uses: extractions/setup-just@v2
-
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'yarn'
-          architecture: 'x64'
+          node-version: 18
 
-      - name: Load cached node_modules
-        id: cached-node_modules
-        uses: actions/cache@v3
-        with:
-          path: node_modules
-          key: yarn-windows-latest-${{ hashFiles('**/yarn.lock') }}
-      - run: yarn install --frozen-lockfile
+      - name: Build js
+        run: |
+          cd src/markup
+          npm ci
+          npm run build
 
-      - run: just bundle-prod
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          version: '0.7.2'
-          enable-cache: true
-          cache-dependency-glob: 'uv.lock'
-
-      - name: Set up Python
-        run: uv python install
-
-      - name: Install the project
-        run: uv sync --all-extras --dev
-
-      - name: Lint with ruff
-        run: just lint-py
-
-      - name: Run clipper tests
-        run: just test-py
-
-      - name: Generate executable
-        run: just build-py
-
-      # Done with uv
-      - name: Minimize uv cache
-        run: uv cache prune --ci
+      - name: Create executable
+        shell: bash
+        run: |
+          pyinstaller -F src/clipper/yt_clipper.py --distpath dist/py --clean --name yt_clipper
 
       - name: Copy artifacts
         shell: bash
         run: |
-          mv ./bindeps/ffmpeg/bin/* ./artifact/py/${{ env.FULL_NAME }}/bin/
-          mv ./bindeps/ffmpeg/*.txt ./artifact/py/${{ env.FULL_NAME }}/bin/
-          mv ./bindeps/yt-dlp/bin/* ./artifact/py/${{ env.FULL_NAME }}/bin/
+          mv ./bindeps/ffmpeg/bin/* ./artifact/py/${NAME}_win_${VERSION}/bin/
+          mv ./bindeps/ffmpeg/*.txt ./artifact/py/${NAME}_win_${VERSION}/bin/
+          mv ./bindeps/yt-dlp/bin/* ./artifact/py/${NAME}_win_${VERSION}/bin/
 
-          cp ./src/clipper/include/* ./artifact/py/${{ env.FULL_NAME }}/
-          cp ./src/clipper/win_helpers/* ./artifact/py/${{ env.FULL_NAME }}/
-          mkdir -p ./artifact/py/${{ env.FULL_NAME }}/yt-dlp-plugins/ytc
-          cp -R ./src/clipper/yt-dlp-plugins/ytc/ ./artifact/py/${{ env.FULL_NAME }}/yt-dlp-plugins/
-          cp ./dist/py/yt_clipper* ./artifact/py/${{ env.FULL_NAME }}/
-
-      - name: Print clipper install version (windows)
-        run: |
-          ./dist/py/yt_clipper.exe --version
+          cp ./src/clipper/include/* ./artifact/py/${NAME}_win_${VERSION}/
+          cp ./src/clipper/win_helpers/* ./artifact/py/${NAME}_win_${VERSION}/
+          mkdir -p ./artifact/py/${NAME}_win_${VERSION}/yt-dlp-plugins/ytc
+          cp -R ./src/clipper/yt-dlp-plugins/ytc/ ./artifact/py/${NAME}_win_${VERSION}/yt-dlp-plugins/
+          cp ./dist/py/yt_clipper* ./artifact/py/${NAME}_win_${VERSION}/
 
       - name: Zip artifacts on windows
-        shell: powershell
+        shell: pwsh
         run: |
-          Compress-Archive ./artifact/py/${{ env.FULL_NAME }}/ ./artifact/py/${{ env.FULL_NAME }}.zip
+          Compress-Archive ./artifact/py/${NAME}_win_${VERSION}/ ./artifact/py/${NAME}_win_${VERSION}.zip
 
       - name: Upload clipper script installation artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.NAME }}_win_${{ env.VERSION }}.zip
-          path: ./artifact/py/${{ env.FULL_NAME }}.zip
+          name: ${{ env.NAME }}_win_${{ env.VERSION }}
+          path: ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}.zip
 
       - name: Upload markup script installation artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4e
         with:
           name: ${{ env.NAME }}_${{ env.VERSION }}.js
           path: ./dist/js/yt_clipper.js
@@ -151,7 +112,21 @@ jobs:
     needs: build
     runs-on: windows-latest
     steps:
-      - name: Set env
+      - name: Set derived environment variables
+        shell: bash
+        run: |
+          echo "WIN_ARTIFACT_NAME=${NAME}_win_${VERSION}" >> $GITHUB_ENV
+          echo "JS_ARTIFACT_NAME=${NAME}_${VERSION}.js" >> $GITHUB_ENV
+
+      - name: Debug environment variables
+        shell: bash
+        run: |
+          echo "NAME: $NAME"
+          echo "VERSION: $VERSION"
+          echo "WIN_ARTIFACT_NAME: $WIN_ARTIFACT_NAME"
+          echo "JS_ARTIFACT_NAME: $JS_ARTIFACT_NAME"
+
+      - name: Set date for release
         id: set_env
         shell: bash
         run: |
@@ -159,11 +134,13 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: ${{ env.NAME }}_win_${{ env.VERSION }}.zip
+          name: ${{ env.NAME }}_win_${{ env.VERSION }}
+          path: ./
 
       - uses: actions/download-artifact@v4
         with:
           name: ${{ env.NAME }}_${{ env.VERSION }}.js
+          path: ./
 
       - name: Create release
         id: create_release
