@@ -1,5 +1,5 @@
 current_version: "5.32.0"
-base_branch: "master"
+base_branch: "nv_clipper"
 strategy:
   name: "semver"
   part: "patch"
