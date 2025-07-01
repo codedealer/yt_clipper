@@ -13,26 +13,10 @@ def getFfmpegVideoCodecArgs(
     qmax: int,
     qmin: int,
 ) -> Tuple[str, str, str]:
-    if videoCodec in {"vp9", "vp8"}:
-        return getFfmpegVideoCodecVpx(
-            videoCodec=videoCodec,
-            cbr=cbr,
-            mp=mp,
-            mps=mps,
-            qmax=qmax,
-            qmin=qmin,
-        )
-
-    if videoCodec == "h264":
-        return getFfmpegVideoCodecH264(cbr=cbr, mp=mp, mps=mps, qmax=qmax, qmin=qmin)
-
-    if videoCodec == "h264_vulkan":
-        return getFfmpegVideoCodecH264Vulkan(cbr=cbr, mp=mp, mps=mps, qmax=qmax, qmin=qmin)
-
     if videoCodec == "h264_nvenc":
         return getFfmpegVideoCodecH264Nvenc(cbr=cbr, mp=mp, mps=mps, qmax=qmax, qmin=qmin)
 
-    raise ValueError(f"Invalid video codec: {videoCodec}")
+    raise ValueError(f"Only h264_nvenc is supported in nv_clipper: {videoCodec} was supplied")
 
 
 def getFfmpegVideoCodecVpx(
@@ -264,13 +248,10 @@ def getFfmpegVideoCodecH264Nvenc(
             "-bf 4",
             # rc-lookahead default is 40, diminishing returns beyond 60
             # although expensive, it may be worth it for gpu encodes which often have lower quality
-            "-rc-lookahead 60",
+            "-rc-lookahead 40",
             "-spatial-aq 1",
-            "-temporal_aq 1",
             "-aq-strength 12",
             "-keyint_min 1",
-            # weighted predictions are not supported with b-frames with nvenc
-            # "-weighted_pred 1",
         ),
     )
 

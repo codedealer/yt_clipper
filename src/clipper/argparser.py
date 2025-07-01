@@ -89,7 +89,7 @@ def getArgParser() -> argparse.ArgumentParser:
                   NOTSET = 0;
                 """,
             ],
-        ),
+        )
     )
     logging_options.add_argument(
         "--no-rich-logs",
@@ -543,27 +543,6 @@ def getArgParser() -> argparse.ArgumentParser:
         ),
     )
     output_options.add_argument(
-        "--video-codec",
-        "-vc",
-        dest="videoCodec",
-        default="vp9",
-        choices=["vp9", "vp8", "h264", "h264_vulkan", "h264_nvenc"],
-        help=" ".join(
-            [
-                "Select a video codec for video encoding."
-                "With vp8, use libvorbis for audio encoding instead of the default libopus.",
-                "vp9 is the default and most tested video codec with yt_clipper.",
-                "vp9 generally offers a better quality-size trade-off than vp8.",
-                "h264 was added more recently and is not as well tested as vp9.",
-                "h264_vulkan uses hardware acceleration (typically a discrete GPU) for faster encodes at the cost of some quality.",
-                "h264_vulkan uses the Vulkan technology which is supported on Linux and Windows across most modern GPUs (AMD/NVIDIA/Intel). MacOS and iOS are not yet supported. Requires ffmpeg >= 7.1.",
-                "h264_nvenc uses NVIDIA GPU hardware acceleration for faster encodes at the cost of some quality.",
-                "h264_nvenc is supported on Windows and Linux with NVIDIA GPUs that have NVENC support (most modern NVIDIA GPUs). Requires ffmpeg with nvenc support.",
-                "If you have issues with hardware acceleration, ensure you have the latest drivers.",
-            ],
-        ),
-    )
-    output_options.add_argument(
         "--h264-disable-reduce-stutter",
         "-h264-drs",
         dest="h264DisableReduceStutter",
@@ -782,6 +761,9 @@ def getArgs() -> Tuple[Dict[str, Any], List[str], List[str], List[str], Dict[str
     argv = argsFromArgFiles + argv
     args, unknown = parser.parse_known_args(argv)
     args = vars(args)
+
+    # Hardcode videoCodec to h264_nvenc
+    args["videoCodec"] = "h264_nvenc"
 
     if args["cropMultiple"] != 1:
         args["cropMultipleX"] = args["cropMultiple"]
