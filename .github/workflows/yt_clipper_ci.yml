@@ -103,7 +103,7 @@ jobs:
           path: ./artifact/py/${{ env.NAME }}_win_${{ env.VERSION }}.zip
 
       - name: Upload markup script installation artifact
-        uses: actions/upload-artifact@v4e
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.NAME }}_${{ env.VERSION }}.js
           path: ./dist/js/yt_clipper.js
