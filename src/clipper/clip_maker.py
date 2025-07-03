@@ -224,7 +224,7 @@ def getMarkerPairSettings(  # noqa: PLR0912
         + f'Audio Enabled: {mps["audio"]}, Denoise: {mps["denoise"]["desc"]}, '
         + f'Marker Pair {markerPairIndex + 1} is of variable speed: {mp["isVariableSpeed"]}, '
         + f'Speed Maps Enabled: {mps["enableSpeedMaps"]}, '
-        + f'Minterpolation Mode: {mps["minterpMode"]}, '
+        + f'AI Interpolation Mode: {mps["minterpMode"]}, '
         + minterpFPSMsg
         + f'Special Looping: {mps["loop"]}, '
         + (f'Fade Duration: {mps["fadeDuration"]}s, ' if mps["loop"] == "fade" else "")
@@ -416,7 +416,36 @@ def makeClip(cs: ClipperState, markerPairIndex: int) -> Optional[Dict[str, Any]]
         video_filter += f",loop=loop=-1:size=(32767)"
 
     cropComponents = mp["cropComponents"]
-    # video_filter += f",mpdecimate=hi=64*2:lo=64:frac=0.1,setpts='(N/FR/TB)'"
+
+    # Source videos with a high time base (eg 1/60 for 60 fps video)
+    # can cause issues with later timestamp manipulations.
+    # Thus we set the timebase to a low value (1/9000 as 9000 is a multiple of 24,25,30).
+    video_filter += f",settb=1/9000"
+
+    # Videos with no duplicate frames should not be adversely affected by frame deduplication.
+    # Low fps video with 1 duplicated frame every N > 2 frames is essentially
+    # of variable frame rate masked as a constant frame rate.
+    # By removing duplicate frames and resetting timestamps based on the expected
+    # constant frame rate, the stutter in the source input is eliminated.
+    # High fps video may sometimes actually be low fps video with doubled frame rate
+    # via frame duplication. Such videos should be passed through to avoid speeding
+    # them up when resetting timestamps to the expected frame rate post-deduplication,
+    # Assumes we do not have low fps video with frame doubling via frame duplication
+    # or high fps video with duplicate frames every N > 2 frames.
+    # We consider videos with less than 47 fps (24*2 - 1) to be of low fps as
+    # the lowest common video fps is ~24 fps and with frame doubling is ~48 fps.
+    # shouldDedupe = not mps["noDedupe"] and (
+    #     mps["dedupe"] or (mps["minterpFPS"] is not None and Fraction(mps["r_frame_rate"]) < 47)
+    # )
+    shouldDedupe = not mps["noDedupe"] and mps["dedupe"]
+    if mps["minterpMode"] != "None" and "Topaz" in mps["minterpProvider"]:
+        # Topaz AI has its own frame deduplication
+        shouldDedupe = False
+    if shouldDedupe:
+        logger.info("Duplicate frames will be removed.")
+        video_filter += f",mpdecimate"
+        video_filter += f",setpts=N/FR/TB"
+
     video_filter += f',{mp["cropFilter"]}'
 
     if mps["subsFilePath"] != "":
@@ -437,31 +466,6 @@ def makeClip(cs: ClipperState, markerPairIndex: int) -> Optional[Dict[str, Any]]
 
     if mps["deinterlace"]:
         video_filter += f",bwdif"
-
-    # Source videos with a high time base (eg 1/60 for 60 fps video)
-    # can cause issues with later timestamp manipulations.
-    # Thus we set the timebase to a low value (1/9000 as 9000 is a multiple of 24,25,30).
-    video_filter += f",settb=1/9000"
-
-    # Videos with no duplicate frames should not be adversely affected by frame deduplication.
-    # Low fps video with 1 duplicated frame every N > 2 frames is essentially
-    # of variable frame rate masked as a constant frame rate.
-    # By removing duplicate frames and resetting timestamps based on the expected
-    # constant frame rate, the stutter in the source input is eliminated.
-    # High fps video may sometimes actually be low fps video with doubled frame rate
-    # via frame duplication. Such videos should be passed through to avoid speeding
-    # them up when resetting timestamps to the expected frame rate post-deduplication,
-    # Assumes we do not have low fps video with frame doubling via frame duplication
-    # or high fps video with duplicate frames every N > 2 frames.
-    # We consider videos with less than 47 fps (24*2 - 1) to be of low fps as
-    # the lowest common video fps is ~24 fps and with frame doubling is ~48 fps.
-    shouldDedupe = not mps["noDedupe"] and (
-        mps["dedupe"] or (mps["minterpFPS"] is not None and Fraction(mps["r_frame_rate"]) < 47)
-    )
-    if shouldDedupe:
-        logger.info("Duplicate frames will be removed.")
-        video_filter += f",mpdecimate=hi=64*8:lo=64*5:frac=0.1"
-        video_filter += f",setpts=N/FR/TB"
 
     if 0 <= mps["gamma"] <= 4 and mps["gamma"] != 1:
         video_filter += f',lutyuv=y=gammaval({mps["gamma"]})'
@@ -646,6 +650,9 @@ def makeClip(cs: ClipperState, markerPairIndex: int) -> Optional[Dict[str, Any]]
         if "minterpMode" in mps and mps["minterpMode"] != "None":
             video_filter += getMinterpFilter(mp, mps)
 
+        if "__needsTopazFormatFix" in mps:
+            video_filter += ",format=yuv444p"
+
         if mps["loop"] != "none":
             video_filter += loop_filter
 
@@ -790,7 +797,7 @@ def runffmpegCommand(
     )
 
     logger.verbose(f"Using ffmpeg command: {printablePass1}\n")
-    ffmpegProcess = subprocess.run(shlex.split(ffmpegPass1), check=False)
+    ffmpegProcess = subprocess.run(shlex.split(ffmpegPass1), check=False, cwd=Path.cwd())
 
     if len(ffmpegCommands) == 2:
         ffmpegPass2 = ffmpegCommands[1]

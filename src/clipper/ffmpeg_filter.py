@@ -76,48 +76,52 @@ def getCropComponents(
     return cropComponentsDict
 
 
+def getTopazInterpFilter(model: str, genFractor: int, rdt: float | None, device: int = 0) -> str:
+    if model == "TopazCHF":
+        model = "chf-3"
+    elif model == "TopazApollo":
+        model = "apo-8"
+    elif model == "TopazAion":
+        model = "aion-1"
+    else:
+        logger.critical(f"Unknown Topaz model {model}.")
+        sys.exit(1)
+
+    rdf = f":rdt={rdt}" if rdt is not None else ""
+
+    return f",tvai_fi=model={model}:slowmo={genFractor}{rdf}:device={device}:vram=1:instances=1"
+
 def getMinterpFilter(mp: Dict[str, Any], mps: Dict[str, Any]) -> str:
-    speedMap = mp["speedMap"]
+    if mps["minterpMode"] == "VideoFPS":
+        logger.warning("Targeting VideoFPS for minterpolation is not supported for now.")
+        return ""
 
-    minterpFPS = mps["minterpFPS"]
-
-    minterpEnable = []
-    if minterpFPS is not None:
-        outDurs = mp["outputDurations"]
-        fps = Fraction(mps["r_frame_rate"])
-        targetSpeed = minterpFPS / fps
-
-        for sect, (left, right) in enumerate(zip(speedMap[:-1], speedMap[1:])):
-            startSpeed = left["y"]
-            endSpeed = right["y"]
-            speedChange = endSpeed - startSpeed
-
-            logger.debug(
-                f"speedChange: {speedChange}, startSpeed: {startSpeed}, targetSpeed: {round(targetSpeed, 2)}",
-            )
-            if speedChange != 0 or startSpeed < round(targetSpeed, 2):
-                logger.debug(f'minterp enabled for section: {left["x"]}, {right["x"]}')
-                sectStart = outDurs[sect]
-                sectEnd = outDurs[sect + 1]
-                minterpEnable.append(f"between(t,{sectStart},{sectEnd})")
-
-    if mps["enableMinterpEnhancements"]:
-        if len(minterpEnable) > 0:
-            minterpEnable = f"""enable='{'+'.join(minterpEnable)}':"""
+    genFractor = 0
+    if mps["minterpMode"].startswith("x") and mps["minterpMode"].endswith("slow"):
+        num_part = mps["minterpMode"][1:-4]
+        if num_part.isdigit():
+            genFractor = int(num_part)
         else:
-            minterpEnable = "enable=0:"
-    else:
-        minterpEnable = ""
+            logger.critical(
+                f"Invalid minterpolation mode {mps['minterpMode']}. "
+                "It should be in the form of xNslow where N is a number.",
+            )
+            sys.exit(1)
 
-    if minterpFPS is not None:
-        minterpFilter = f""",minterpolate={minterpEnable}fps=({minterpFPS}):mi_mode=mci"""
-        minterpFilter += f""":mc_mode=aobmc:me_mode=bidir:vsbmc=1"""
-        sp = max(mps["minterpSearchParam"], 4)
-        minterpFilter += f""":search_param={sp}:scd_threshold=8:mb_size=16"""
-        if mps["enableMinterpEnhancements"]:
-            minterpFilter += f""":fuovf=1:alpha_threshold=256"""
+    minterpFilter = ""
+    shouldDedupe = not mps["noDedupe"] and mps["dedupe"]
+    dedupeThreshold = 0.01 if shouldDedupe else None
+    if mps["minterpProvider"] == "RIFE":
+        logger.warning("RIFE is not supported in nv_clipper for now.")
+        return minterpFilter
+    if "Topaz" in mps["minterpProvider"]:
+        minterpFilter = getTopazInterpFilter(mps["minterpProvider"], genFractor, dedupeThreshold)
+        mps["__needsTopazFormatFix"] = True
     else:
-        minterpFilter = ""
+        logger.critical(
+            f"Unknown minterpolation provider {mps['minterpProvider']}. ",
+        )
+        sys.exit(1)
 
     logger.debug(minterpFilter)
     return minterpFilter
@@ -132,22 +136,10 @@ def getMinterpFPS(
         return None
     videoFPS = Fraction(mps["r_frame_rate"])
 
-    maxSpeed = getMaxSpeed(speedMap)
-    maxFPS = maxSpeed * videoFPS
+    # maxSpeed = getMaxSpeed(speedMap)
+    # maxFPS = maxSpeed * videoFPS
 
-    minterpFPS = None
-    if minterpMode == "Numeric" and "minterpFPS" in mps and mps["minterpFPS"] is not None:
-        minterpFPS = min(120, mps["minterpFPS"])
-    if minterpMode == "MaxSpeed":
-        minterpFPS = maxFPS
-    elif minterpMode == "VideoFPS":
-        minterpFPS = videoFPS
-    elif minterpMode == "MaxSpeedx2":
-        minterpFPS = 2 * maxFPS
-    elif minterpMode == "VideoFPSx2":
-        minterpFPS = 2 * videoFPS
-
-    return minterpFPS
+    return videoFPS if (minterpMode is not None and minterpMode != "None") else None
 
 
 def getMaxSpeed(speedMap: Union[SpeedMap, None]) -> float:

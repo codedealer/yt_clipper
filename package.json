@@ -19,7 +19,7 @@
     }
   },
   "scripts": {
-    "lint:py": "just lint-py",
+    "lint:py": "just lint-py-fix",
     "test:py": "just test-py",
     "precommit-msg": "echo 'Pre-commit checks...' && exit 0"
   },

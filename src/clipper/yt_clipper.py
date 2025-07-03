@@ -67,8 +67,6 @@ def main() -> None:
         logger.notice(unknown)
         logger.info("-" * 80)
 
-    enableMinterpEnhancements(cs)
-
     ytc_settings.getInputVideo(cs)
 
     ytc_settings.getGlobalSettings(cs)
@@ -83,6 +81,39 @@ def main() -> None:
 
     if cs.settings["notifyOnCompletion"]:
         util.notifyOnComplete(cs.settings["titleSuffix"])
+
+def prepareTopazFFmpeg(cs: ClipperState) -> None:
+    """
+    Prepares the ffmpeg path and environment variables for Topaz Video AI integration.
+    """
+    topaz_path = cs.settings.get("topazAIPath", "")
+    if not topaz_path:
+        return  # Nothing to do if not set
+
+    # Step 1: Get directory from path
+    topaz_dir = Path(topaz_path)
+    if not topaz_dir.is_dir():
+        topaz_dir = topaz_dir.parent
+
+    # Step 2: Ensure ffmpeg.exe exists in the directory
+    ffmpeg_path = Path(str(topaz_dir / "ffmpeg.exe"))
+    if not ffmpeg_path.is_file():
+        raise FileNotFoundError(f"ffmpeg.exe not found in {topaz_dir}")
+
+    # Step 3: Set cs.clipper_paths.ffmpegPath
+    cs.clipper_paths.ffmpegPath = str(ffmpeg_path).replace("\\", "/")
+
+    # Step 4: Set environment variables for Topaz model directories
+    model_data_dir = cs.settings.get("topazModelDataDir", "")
+    model_dir = cs.settings.get("topazModelDir", "")
+    if not model_data_dir or not model_dir:
+        raise ValueError("Both topazModelDataDir and topazModelDir must be set in settings.")
+
+    os.environ["TVAI_MODEL_DATA_DIR"] = model_data_dir
+    os.environ["TVAI_MODEL_DIR"] = model_dir
+    # CUDA optimizations
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # Adjust as needed for your setup
+    os.environ["CUDA_DEVICE_MAX_CONNECTIONS"] = "2"
 
 
 def setupDepPaths(cs: ClipperState) -> None:
@@ -111,6 +142,8 @@ def setupDepPaths(cs: ClipperState) -> None:
     if settings["ytdlLocation"]:
         cp.ytdlPath = settings["ytdlLocation"]
 
+    prepareTopazFFmpeg(cs)
+
 
 def setupOutputPaths(cs: ClipperState) -> None:
     settings = cs.settings
@@ -119,22 +152,6 @@ def setupOutputPaths(cs: ClipperState) -> None:
 
     os.makedirs(f"{cp.clipsPath}/temp", exist_ok=True)
     settings["downloadVideoPath"] = f'{cp.clipsPath}/{settings["downloadVideoNameStem"]}'
-
-
-def enableMinterpEnhancements(cm: ClipperState) -> None:
-    settings = cm.settings
-    cp = cm.clipper_paths
-    if settings["enableMinterpEnhancements"] and sys.platform == "win32":
-        cp.ffmpegPath = "./bin/ffmpeg_ytc.exe"
-        if not Path(cp.ffmpegPath).is_file():
-            logger.critical(
-                f"{cp.ffmpegPath} required for minterp enhancements not found.",
-            )
-            sys.exit(1)
-        else:
-            logger.success(f"Found {cp.ffmpegPath}. Minterp enhancements enabled.")
-    else:
-        settings["enableMinterpEnhancements"] = False
 
 
 if __name__ == "__main__":

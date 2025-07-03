@@ -1,3 +1,5 @@
+set shell := ["powershell.exe", "-c"]
+
 default:
   just --list
 
@@ -43,7 +45,7 @@ build-py $UV_PREVIEW="1":
 build-all:
   run-s -c build-ts-p build-py
 bundle-w:
-  npx parcel watch --no-scope-hoist --no-optimize --no-hmr
+  npx parcel watch src/markup/yt_clipper.ts --dist-dir dist/js --target userscript
 bundle-tc-w:
   run-p -c build-ts-ne bundle-w
 bundle-prod:

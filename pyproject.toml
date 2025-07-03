@@ -3,7 +3,7 @@ name = "clipper"
 version = "5.32.0"
 description = "Quickly generate clipped webms."
 authors = [{ name = "exwm", email = "rjvgb@protonmail.com" }]
-requires-python = ">=3.9,<3.13"
+requires-python = ">=3.12,<3.13"
 readme = "readme.md"
 license = "MIT"
 dependencies = [
@@ -15,6 +15,9 @@ dependencies = [
     "certifi>=2024.7.4",
     "rich>=13.9.1,<14",
     "rich-argparse>=1.5.2,<2",
+    "numpy==2.2.6",
+    "opencv-python==4.11.0.86",
+    "onnxruntime-gpu==1.22.0",
 ]
 
 [project.scripts]

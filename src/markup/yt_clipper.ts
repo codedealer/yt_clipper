@@ -2,16 +2,14 @@
 // ==UserScript==
 // BANNER GUARD
 // @locale       english
-// @name         yt_clipper
+// @name         nv_clipper
 // @version      5.32.0
 // @version      5.32.0
 // @description  Mark up YouTube videos and quickly generate clipped webms.
 // @author       elwm
-// @namespace    https://github.com/exwm
-// @homepage     https://github.com/exwm/yt_clipper
-// @supportURL   https://github.com/exwm/yt_clipper/issues
-// @downloadURL  https://openuserjs.org/src/scripts/elwm/yt_clipper.user.js
-// @updateURL    https://openuserjs.org/meta/elwm/yt_clipper.meta.js
+// @namespace    https://github.com/codedealer
+// @homepage     https://github.com/codedealer/nv_clipper
+// @supportURL   https://github.com/codedealer/nv_clipper/issues
 // @icon         https://raw.githubusercontent.com/exwm/yt_clipper/master/assets/image/pepe-clipper.gif
 // @license      MIT
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.4.0/dist/jszip.min.js
@@ -2163,86 +2161,54 @@ async function loadytClipper() {
           <option ${settings.audio ? 'selected' : ''}>Enabled</option>
         </select>
       </div>
-      <div class="settings-editor-input-div" title="${Tooltips.encodeSpeedTooltip}">
-        <span>Encode Speed (0-5)</span>
-        <input id="encode-speed-input" type="number" min="0" max="5" step="1" value="${
-          settings.encodeSpeed != null ? settings.encodeSpeed : ''
-        }" placeholder="Auto" style="min-width:4em"></input>
-      </div>
-      <div class="settings-editor-input-div" title="${Tooltips.CRFTooltip}">
-        <span>CRF (0-63)</span>
-        <input id="crf-input" type="number" min="0" max="63" step="1" value="${
-          settings.crf != null ? settings.crf : ''
-        }" placeholder="Auto" style="min-width:4em"></input>
-      </div>
-      <div class="settings-editor-input-div" title="${Tooltips.targetBitrateTooltip}">
-        <span>Target Bitrate (kb/s)</span>
-        <input id="target-max-bitrate-input" type="number" min="0" max="1e5"step="100" value="${
-          settings.targetMaxBitrate != null ? settings.targetMaxBitrate : ''
-        }" placeholder="Auto" style="min-width:4em"></input>
-      </div>
-
-      <div class="settings-editor-input-div" title="${Tooltips.twoPassTooltip}">
-        <span>Two-Pass</span>
-        <select id="two-pass-input">
-          <option value="Default" ${settings.twoPass == null ? 'selected' : ''}>(Disabled)</option>
-          <option ${settings.twoPass === false ? 'selected' : ''}>Disabled</option>
-          <option ${settings.twoPass ? 'selected' : ''}>Enabled</option>
-        </select>
-      </div>
-
-      <div class="settings-editor-input-div" title="${Tooltips.gammaTooltip}">
-        <span>Gamma (0-4)</span>
-        <input id="gamma-input" type="number" min="0.01" max="4.00" step="0.01" value="${
-          settings.gamma != null ? settings.gamma : ''
-        }" placeholder="1" style="min-width:4em"></input>
-      </div>
 
       <div class="settings-editor-input-div" title="${Tooltips.hdrTooltip}">
-        <span>Enable HDR</span>
-        <select id="enable-hdr-input">
-          <option value="Default" ${settings.enableHDR == null ? 'selected' : ''}>(Disabled)</option>
-          <option ${settings.enableHDR === false ? 'selected' : ''}>Disabled</option>
-          <option ${settings.enableHDR ? 'selected' : ''}>Enabled</option>
-        </select>
+      <span>Enable HDR</span>
+      <select id="enable-hdr-input">
+      <option value="Default" ${settings.enableHDR == null ? 'selected' : ''}>(Disabled)</option>
+      <option ${settings.enableHDR === false ? 'selected' : ''}>Disabled</option>
+      <option ${settings.enableHDR ? 'selected' : ''}>Enabled</option>
+      </select>
       </div>
 
-      <div class="settings-editor-input-div" title="${Tooltips.denoiseTooltip}">
-        <span>Denoise</span>
-        <select id="denoise-input">
-          <option value="Inherit" ${denoiseDesc == null ? 'selected' : ''}>(Disabled)</option>
-          <option ${denoiseDesc === 'Very Weak' ? 'selected' : ''}>Very Weak</option>
-          <option ${denoiseDesc === 'Weak' ? 'selected' : ''}>Weak</option>
-          <option ${denoiseDesc === 'Medium' ? 'selected' : ''}>Medium</option>
-          <option ${denoiseDesc === 'Strong' ? 'selected' : ''}>Strong</option>
-          <option ${denoiseDesc === 'Very Strong' ? 'selected' : ''}>Very Strong</option>
-        </select>
-      </div>
-      <div class="settings-editor-input-div">
-        <div  title="${Tooltips.minterpModeTooltip}">
-          <span>Minterpolation</span>
-          <select id="minterp-mode-input">
-            <option value="Default" ${minterpMode == null ? 'selected' : ''}>(Numeric)</option>
-            <option ${minterpMode === 'None' ? 'selected' : ''}>None</option>
-            <option value="MaxSpeed" ${
-              minterpMode == 'MaxSpeed' ? 'selected' : ''
-            }>MaxSpeed</option>
-            <option value="VideoFPS" ${
-              minterpMode == 'VideoFPS' ? 'selected' : ''
-            }>VideoFPS</option>
-            <option value="MaxSpeedx2" ${
-              minterpMode == 'MaxSpeedx2' ? 'selected' : ''
-            }>MaxSpeedx2</option>
-            <option value="VideoFPSx2" ${
-              minterpMode == 'VideoFPSx2' ? 'selected' : ''
-            }>VideoFPSx2</option>
+      <div class="settings-editor-input-div multi-input-div" title="${Tooltips.loopTooltip}">
+        <div>
+          <span>Loop</span>
+          <select id="loop-input">
+          <option value="Default" ${settings.loop == null ? 'selected' : ''}>(none)</option>
+          <option ${settings.loop === 'none' ? 'selected' : ''}>none</option>
+            <option ${settings.loop === 'fwrev' ? 'selected' : ''}>fwrev</option>
+            <option ${settings.loop === 'fade' ? 'selected' : ''}>fade</option>
           </select>
         </div>
-        <div  title="${Tooltips.minterpFPSTooltip}">
-          <span>FPS</span>
-          <input id="minterp-fps-input" type="number" min="10" max="120" step="1" value="${
-            minterpFPS ?? ''
-          }" placeholder="" style="min-width:2em"></input>
+        <div title="${Tooltips.fadeDurationTooltip}">
+          <span>Fade Duration</span>
+          <input id="fade-duration-input" type="number" min="0.1" step="0.1" value="${
+            settings.fadeDuration != null ? settings.fadeDuration : ''
+          }" placeholder="0.7" style="width:7em"></input>
+        </div>
+      </div>
+
+      <div class="settings-editor-separator"></div>
+
+      <div class="settings-editor-input-div">
+        <div  title="${Tooltips.minterpModeTooltip}">
+          <span>Interpolation</span>
+          <select id="minterp-mode-input">
+            <option value="None" ${minterpMode == null || minterpMode === 'None' ? 'selected' : ''}>None</option>
+            <option value="VideoFPS" ${
+              minterpMode == 'VideoFPS' ? 'selected' : ''
+            }>Target FPS</option>
+            <option value="x2slowmo" ${
+              minterpMode == 'x2slowmo' ? 'selected' : ''
+            }>x2 Slowmo</option>
+            <option value="x4slowmo" ${
+              minterpMode == 'x4slowmo' ? 'selected' : ''
+            }>x4 Slowmo</option>
+            <option value="x8slowmo" ${
+              minterpMode == 'x8slowmo' ? 'selected' : ''
+            }>x8 Slowmo</option>
+          </select>
         </div>
       </div>
       <div class="settings-editor-input-div multi-input-div" title="${Tooltips.vidstabTooltip}">
@@ -2269,23 +2235,7 @@ async function loadytClipper() {
           </select>
         </div>
       </div>
-      <div class="settings-editor-input-div multi-input-div" title="${Tooltips.loopTooltip}">
-        <div>
-          <span>Loop</span>
-          <select id="loop-input">
-          <option value="Default" ${settings.loop == null ? 'selected' : ''}>(none)</option>
-          <option ${settings.loop === 'none' ? 'selected' : ''}>none</option>
-            <option ${settings.loop === 'fwrev' ? 'selected' : ''}>fwrev</option>
-            <option ${settings.loop === 'fade' ? 'selected' : ''}>fade</option>
-          </select>
-        </div>
-        <div title="${Tooltips.fadeDurationTooltip}">
-          <span>Fade Duration</span>
-          <input id="fade-duration-input" type="number" min="0.1" step="0.1" value="${
-            settings.fadeDuration != null ? settings.fadeDuration : ''
-          }" placeholder="0.7" style="width:7em"></input>
-        </div>
-      </div>
+
     </fieldset>
     `
     );
