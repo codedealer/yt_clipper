@@ -77,11 +77,12 @@ def getCropComponents(
 
 
 def getTopazInterpFilter(model: str, genFractor: int, rdt: float | None, device: int = 0) -> str:
-    if model == "TopazCHF":
+    model_lower = model.lower()
+    if model_lower == "topazchf":
         model = "chf-3"
-    elif model == "TopazApollo":
+    elif model_lower == "topazapollo":
         model = "apo-8"
-    elif model == "TopazAion":
+    elif model_lower == "topazaion":
         model = "aion-1"
     else:
         logger.critical(f"Unknown Topaz model {model}.")
@@ -111,10 +112,10 @@ def getMinterpFilter(mp: Dict[str, Any], mps: Dict[str, Any]) -> str:
     minterpFilter = ""
     shouldDedupe = not mps["noDedupe"] and mps["dedupe"]
     dedupeThreshold = 0.01 if shouldDedupe else None
-    if mps["minterpProvider"] == "RIFE":
+    if mps["minterpProvider"].lower() == "rife":
         logger.warning("RIFE is not supported in nv_clipper for now.")
         return minterpFilter
-    if "Topaz" in mps["minterpProvider"]:
+    if "topaz" in mps["minterpProvider"].lower():
         minterpFilter = getTopazInterpFilter(mps["minterpProvider"], genFractor, dedupeThreshold)
         mps["__needsTopazFormatFix"] = True
     else:
