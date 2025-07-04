@@ -2072,9 +2072,7 @@ async function loadytClipper() {
     const cropResX2 = `${cropResWidth * 2}x${cropResHeight * 2}`;
     const resList = `<option value="${cropRes}"><option value="${cropResX2}">`;
     const minterpMode = settings.minterpMode;
-    const minterpFPS = settings.minterpFPS;
-    const denoise = settings.denoise;
-    const denoiseDesc = denoise ? denoise.desc : null;
+    const minterpProvider = settings.minterpProvider;
     const vidstab = settings.videoStabilization;
     const vidstabDesc = vidstab ? vidstab.desc : null;
     const vidstabDynamicZoomEnabled = settings.videoStabilizationDynamicZoom;
@@ -2191,7 +2189,7 @@ async function loadytClipper() {
 
       <div class="settings-editor-separator"></div>
 
-      <div class="settings-editor-input-div">
+      <div class="settings-editor-input-div multi-input-div">
         <div  title="${Tooltips.minterpModeTooltip}">
           <span>Interpolation</span>
           <select id="minterp-mode-input">
@@ -2199,16 +2197,28 @@ async function loadytClipper() {
             <option value="VideoFPS" ${
               minterpMode == 'VideoFPS' ? 'selected' : ''
             }>Target FPS</option>
-            <option value="x2slowmo" ${
-              minterpMode == 'x2slowmo' ? 'selected' : ''
+            <option value="x2slow" ${
+              minterpMode == 'x2slow' ? 'selected' : ''
             }>x2 Slowmo</option>
-            <option value="x4slowmo" ${
-              minterpMode == 'x4slowmo' ? 'selected' : ''
+            <option value="x4slow" ${
+              minterpMode == 'x4slow' ? 'selected' : ''
             }>x4 Slowmo</option>
-            <option value="x8slowmo" ${
-              minterpMode == 'x8slowmo' ? 'selected' : ''
+            <option value="x6slow" ${
+              minterpMode == 'x6slow' ? 'selected' : ''
+            }>x6 Slowmo</option>
+            <option value="x8slow" ${
+              minterpMode == 'x8slow' ? 'selected' : ''
             }>x8 Slowmo</option>
           </select>
+        </div>
+        <div>
+            <span>Provider</span>
+            <select id="minterp-provider-input">
+              <option value="RIFE" ${minterpProvider === 'RIFE' ? 'selected' : ''}>RIFE</option>
+              <option value="TopazCHF" ${minterpProvider === 'TopazCHF' ? 'selected' : ''}>TopazCHF</option>
+              <option value="TopazApollo" ${minterpProvider === 'TopazApollo' ? 'selected' : ''}>TopazApollo</option>
+              <option value="TopazAion" ${minterpProvider === 'TopazAion' ? 'selected' : ''}>TopazAion</option>
+            </select>
         </div>
       </div>
       <div class="settings-editor-input-div multi-input-div" title="${Tooltips.vidstabTooltip}">
@@ -2221,7 +2231,6 @@ async function loadytClipper() {
             <option ${vidstabDesc === 'Medium' ? 'selected' : ''}>Medium</option>
             <option ${vidstabDesc === 'Strong' ? 'selected' : ''}>Strong</option>
             <option ${vidstabDesc === 'Very Strong' ? 'selected' : ''}>Very Strong</option>
-            <option ${vidstabDesc === 'Strongest' ? 'selected' : ''}>Strongest</option>
           </select>
         </div>
         <div title="${Tooltips.dynamicZoomTooltip}">
@@ -2249,18 +2258,12 @@ async function loadytClipper() {
       ['title-suffix-input', 'titleSuffix', 'string'],
       ['merge-list-input', 'markerPairMergeList', 'string'],
       ['enable-hdr-input', 'enableHDR', 'ternary'],
-      ['gamma-input', 'gamma', 'number'],
-      ['encode-speed-input', 'encodeSpeed', 'number'],
-      ['crf-input', 'crf', 'number'],
-      ['target-max-bitrate-input', 'targetMaxBitrate', 'number'],
       ['rotate-0', 'rotate', 'string'],
       ['rotate-90-clock', 'rotate', 'string'],
       ['rotate-90-counterclock', 'rotate', 'string'],
-      ['two-pass-input', 'twoPass', 'ternary'],
       ['audio-input', 'audio', 'ternary'],
-      ['denoise-input', 'denoise', 'preset'],
       ['minterp-mode-input', 'minterpMode', 'inheritableString'],
-      ['minterp-fps-input', 'minterpFPS', 'number'],
+      ['minterp-provider-input', 'minterpProvider', 'inheritableString'],
       ['video-stabilization-input', 'videoStabilization', 'preset'],
       ['video-stabilization-dynamic-zoom-input', 'videoStabilizationDynamicZoom', 'ternary'],
       ['loop-input', 'loop', 'inheritableString'],
@@ -2545,11 +2548,8 @@ async function loadytClipper() {
       ? `(${settings.videoStabilization.desc})`
       : '(Disabled)';
     const vidstabDynamicZoomEnabled = overrides.videoStabilizationDynamicZoom;
-    const minterpMode = overrides.minterpMode;
-    const minterpFPS = overrides.minterpFPS;
-    const denoise = overrides.denoise;
-    const denoiseDesc = denoise ? denoise.desc : null;
-    const denoiseDescGlobal = settings.denoise ? `(${settings.denoise.desc})` : '(Disabled)';
+    const minterpMode = overrides.minterpMode ?? settings.minterpMode;
+    const minterpProvider = overrides.minterpProvider ?? settings.minterpProvider;
     const overridesEditorDisplay = isExtraSettingsEditorEnabled ? 'block' : 'none';
     createCropOverlay(crop);
 
@@ -2613,36 +2613,6 @@ async function loadytClipper() {
             <option ${overrides.audio ? 'selected' : ''}>Enabled</option>
           </select>
         </div>
-        <div class="settings-editor-input-div" title="${Tooltips.encodeSpeedTooltip}">
-          <span>Encode Speed (0-5)</span>
-          <input id="encode-speed-input" type="number" min="0" max="5" step="1" value="${
-            overrides.encodeSpeed != null ? overrides.encodeSpeed : ''
-          }" placeholder="${settings.encodeSpeed || 'Auto'}"  style="min-width:4em"></input>
-        </div>
-        <div class="settings-editor-input-div" title="${Tooltips.CRFTooltip}">
-          <span>CRF (0-63)</span>
-          <input id="crf-input" type="number" min="0" max="63" step="1" value="${
-            overrides.crf != null ? overrides.crf : ''
-          }" placeholder="${
-            settings.crf != null ? settings.crf : 'Auto'
-          }" style="min-width:4em"></input>
-        </div>
-        <div class="settings-editor-input-div" title="${Tooltips.targetBitrateTooltip}">
-          <span>Bitrate (kb/s)</span>
-          <input id="target-max-bitrate-input" type="number" min="0" max="10e5" step="100" value="${
-            overrides.targetMaxBitrate != null ? overrides.targetMaxBitrate : ''
-          }" placeholder="${settings.targetMaxBitrate || 'Auto'}" style="min-width:4em"></input>
-        </div>
-        <div class="settings-editor-input-div" title="${Tooltips.twoPassTooltip}">
-          <span>Two-Pass</span>
-          <select id="two-pass-input">
-            <option value="Default" ${overrides.twoPass == null ? 'selected' : ''}>
-              ${ternaryToString(settings.twoPass)}
-            </option>
-            <option ${overrides.twoPass === false ? 'selected' : ''}>Disabled</option>
-            <option ${overrides.twoPass ? 'selected' : ''}>Enabled</option>
-          </select>
-        </div>
 
       <div class="settings-editor-input-div" title="${Tooltips.hdrTooltip}">
         <span>Enable HDR</span>
@@ -2656,60 +2626,38 @@ async function loadytClipper() {
       </div>
 
       </div>
-        <div class="settings-editor-input-div" title="${Tooltips.gammaTooltip}">
-          <span>Gamma (0-4)</span>
-          <input id="gamma-input" type="number" min="0.01" max="4.00" step="0.01" value="${
-            overrides.gamma != null ? overrides.gamma : ''
-          }" placeholder="${
-            settings.gamma != null ? settings.gamma : '1'
-          }" style="min-width:4em"></input>
-        </div>
 
-        <div class="settings-editor-input-div" title="${Tooltips.denoiseTooltip}">
-          <span>Denoise</span>
-          <select id="denoise-input">
-            <option value="Inherit" ${
-              denoiseDesc == null ? 'selected' : ''
-            }>${denoiseDescGlobal}</option>
-            <option value="Disabled" ${
-              denoiseDesc == 'Disabled' ? 'selected' : ''
-            }>Disabled</option>
-            <option ${denoiseDesc === 'Very Weak' ? 'selected' : ''}>Very Weak</option>
-            <option ${denoiseDesc === 'Weak' ? 'selected' : ''}>Weak</option>
-            <option ${denoiseDesc === 'Medium' ? 'selected' : ''}>Medium</option>
-            <option ${denoiseDesc === 'Strong' ? 'selected' : ''}>Strong</option>
-            <option ${denoiseDesc === 'Very Strong' ? 'selected' : ''}>Very Strong</option>
-          </select>
-        </div>
         <div class="settings-editor-input-div">
           <div title="${Tooltips.minterpModeTooltip}">
             <span>Minterpolation</span>
             <select id="minterp-mode-input">
-              <option value="Default" ${minterpMode == null ? 'selected' : ''}>${
-                settings.minterpMode != null ? `(${settings.minterpMode})` : '(Numeric)'
-              }</option>
               <option ${minterpMode === 'None' ? 'selected' : ''}>None</option>
-              <option ${minterpMode === 'Numeric' ? 'selected' : ''}>Numeric</option>
-              <option value="MaxSpeed" ${
-                minterpMode == 'MaxSpeed' ? 'selected' : ''
-              }>MaxSpeed</option>
               <option value="VideoFPS" ${
                 minterpMode == 'VideoFPS' ? 'selected' : ''
-              }>VideoFPS</option>
-              <option value="MaxSpeedx2" ${
-                minterpMode == 'MaxSpeedx2' ? 'selected' : ''
-              }>MaxSpeedx2</option>
-              <option value="VideoFPSx2" ${
-                minterpMode == 'VideoFPSx2' ? 'selected' : ''
-              }>VideoFPSx2</option>
+              }>Target FPS</option>
+              <option value="x2slow" ${
+                minterpMode == 'x2slow' ? 'selected' : ''
+              }>x2 Slowmo</option>
+              <option value="x4slow" ${
+                minterpMode == 'x4slow' ? 'selected' : ''
+              }>x4 Slowmo</option>
+              <option value="x6slow" ${
+                minterpMode == 'x6slow' ? 'selected' : ''
+              }>x6 Slowmo</option>
+              <option value="x8slow" ${
+                minterpMode == 'x8slow' ? 'selected' : ''
+              }>x8 Slowmo</option>
             </select>
           </div>
-          <div title="${Tooltips.minterpFPSTooltip}">
-            <span>FPS</span>
-            <input id="minterp-fps-input" type="number" min="10" max="120" step="1" value="${
-              minterpFPS ?? ''
-            }" placeholder="" style="min-width:2em"></input>
-          </div>
+          <div>
+            <span>Provider</span>
+            <select id="minterp-provider-input">
+              <option value="RIFE" ${minterpProvider === 'RIFE' ? 'selected' : ''}>RIFE</option>
+              <option value="TopazCHF" ${minterpProvider === 'TopazCHF' ? 'selected' : ''}>TopazCHF</option>
+              <option value="TopazApollo" ${minterpProvider === 'TopazApollo' ? 'selected' : ''}>TopazApollo</option>
+              <option value="TopazAion" ${minterpProvider === 'TopazAion' ? 'selected' : ''}>TopazAion</option>
+            </select>
+        </div>
         </div>
         <div class="settings-editor-input-div multi-input-div" title="${Tooltips.vidstabTooltip}">
         <div>
@@ -2726,7 +2674,6 @@ async function loadytClipper() {
               <option ${vidstabDesc === 'Medium' ? 'selected' : ''}>Medium</option>
               <option ${vidstabDesc === 'Strong' ? 'selected' : ''}>Strong</option>
               <option ${vidstabDesc === 'Very Strong' ? 'selected' : ''}>Very Strong</option>
-              <option ${vidstabDesc === 'Strongest' ? 'selected' : ''}>Strongest</option>
             </select>
           </div>
           <div title="${Tooltips.dynamicZoomTooltip}">
@@ -2784,15 +2731,9 @@ async function loadytClipper() {
     const overrideInputConfigs = [
       ['title-prefix-input', 'titlePrefix', 'string'],
       ['enable-hdr-input', 'enableHDR', 'ternary'],
-      ['gamma-input', 'gamma', 'number'],
-      ['encode-speed-input', 'encodeSpeed', 'number'],
-      ['crf-input', 'crf', 'number'],
-      ['target-max-bitrate-input', 'targetMaxBitrate', 'number'],
-      ['two-pass-input', 'twoPass', 'ternary'],
       ['audio-input', 'audio', 'ternary'],
       ['minterp-mode-input', 'minterpMode', 'inheritableString'],
-      ['minterp-fps-input', 'minterpFPS', 'number'],
-      ['denoise-input', 'denoise', 'preset'],
+      ['minterp-provider-input', 'minterpProvider', 'inheritableString'],
       ['video-stabilization-input', 'videoStabilization', 'preset'],
       ['video-stabilization-dynamic-zoom-input', 'videoStabilizationDynamicZoom', 'ternary'],
       ['loop-input', 'loop', 'inheritableString'],
@@ -2815,6 +2756,9 @@ async function loadytClipper() {
     }
     highlightModifiedSettings(inputConfigs, markerPair);
     highlightModifiedSettings(overrideInputConfigs, markerPair.overrides);
+
+    // update the duration with account for interpolation speed
+    updateMarkerPairDuration(markerPair);
   }
 
   function markerPairNumberInputHandler(e: Event) {
@@ -3203,6 +3147,16 @@ async function loadytClipper() {
         const markerPair = markerPairs[prevSelectedMarkerPairIndex];
         updateMarkerPairSpeed(markerPair, newValue);
         renderSpeedAndCropUI();
+      }
+
+      // If interpolation settings changed, update duration display
+      if (
+        (targetProperty === 'minterpMode' || targetProperty === 'minterpProvider') &&
+        !wasGlobalSettingsEditorOpen &&
+        prevSelectedMarkerPairIndex != null
+      ) {
+        const markerPair = markerPairs[prevSelectedMarkerPairIndex];
+        updateMarkerPairDuration(markerPair);
       }
 
       if (targetProperty === 'enableZoomPan') {
@@ -5794,19 +5748,38 @@ async function loadytClipper() {
     const durationHHMMSS = toHHMMSSTrimmed(duration);
     const speed = markerPair.speed;
     const speedMap = markerPair.speedMap;
+
+    // Determine effective minterpMode
+    const minterpMode = markerPair.overrides?.minterpMode ?? settings.minterpMode;
+
+    let outputDuration: number;
+    let outputDurationHHMMSS: string;
     if (isVariableSpeed(speedMap)) {
-      const outputDuration = getOutputDuration(markerPair.speedMap, getFPS());
-      const outputDurationHHMMSS = toHHMMSSTrimmed(outputDuration);
-      if (speedAdjustedDurationSpan)
-        speedAdjustedDurationSpan.textContent = `${durationHHMMSS} (${outputDurationHHMMSS})`;
-      markerPair.outputDuration = outputDuration;
+      outputDuration = getOutputDuration(markerPair.speedMap, getFPS());
     } else {
-      const outputDuration = duration / speed;
-      const outputDurationHHMMSS = toHHMMSSTrimmed(outputDuration);
-      if (speedAdjustedDurationSpan)
-        speedAdjustedDurationSpan.textContent = `${durationHHMMSS}/${speed} = ${outputDurationHHMMSS}`;
-      markerPair.outputDuration = outputDuration;
+      outputDuration = duration / speed;
     }
+
+    let minterpFactor = 1;
+    if (typeof minterpMode === 'string' && minterpMode.startsWith('x') && minterpMode.endsWith('slow')) {
+      const factor = parseInt(minterpMode.slice(1, -4), 10);
+      if (!isNaN(factor)) {
+        minterpFactor = factor;
+      }
+    }
+
+    outputDuration *= minterpFactor;
+    outputDurationHHMMSS = toHHMMSSTrimmed(outputDuration);
+
+    if (speedAdjustedDurationSpan) {
+      if (isVariableSpeed(speedMap)) {
+        speedAdjustedDurationSpan.textContent = `${durationHHMMSS} (${outputDurationHHMMSS})`;
+      } else {
+        const outputSpeedFactor = minterpFactor > 1 ? `${speed} x${minterpFactor}` : speed.toString();
+        speedAdjustedDurationSpan.textContent = `${durationHHMMSS}/${outputSpeedFactor} = ${outputDurationHHMMSS}`;
+      }
+    }
+    markerPair.outputDuration = outputDuration;
   }
 
   function renumberMarkerPairs() {

@@ -26,6 +26,7 @@ interface Settings {
   videoStabilization?: VideoStabilization;
   videoStabilizationDynamicZoom?: boolean;
   minterpMode?: string | boolean;
+  minterpProvider?: 'RIFE' | 'TopazCHF' | 'TopazApollo' | 'TopazAion';
   minterpFPS?: number;
   loop?: Loop;
   fadeDuration?: number;
@@ -90,7 +91,7 @@ interface MarkerPairOverrides {
   videoStabilization?: VideoStabilization;
   videoStabilizationDynamicZoom?: boolean;
   minterpMode?: string | boolean;
-  minterpFPS?: number;
+  minterpProvider?: string;
   loop?: Loop;
   fadeDuration?: number;
 }

@@ -211,6 +211,7 @@ def getMarkerPairSettings(  # noqa: PLR0912
 
     titlePrefixLogMsg = f'Title Prefix: {mps.get("titlePrefix", "")}'
     logger.info("-" * 80)
+    minterpMsg = f'AI Interpolation Mode: {mps["minterpMode"]} ({mps["minterpProvider"]}), ' if mps["minterpMode"] != "None" else ""
     minterpFPSMsg = f'Target FPS: {mps["minterpFPS"]}, '
     logger.info(
         f"Marker Pair {markerPairIndex + 1} Settings: {titlePrefixLogMsg}, "
@@ -222,7 +223,7 @@ def getMarkerPairSettings(  # noqa: PLR0912
         + f'Audio Enabled: {mps["audio"]}, Denoise: {mps["denoise"]["desc"]}, '
         + f'Marker Pair {markerPairIndex + 1} is of variable speed: {mp["isVariableSpeed"]}, '
         + f'Speed Maps Enabled: {mps["enableSpeedMaps"]}, '
-        + f'AI Interpolation Mode: {mps["minterpMode"]}, '
+        + minterpMsg
         + minterpFPSMsg
         + f'Special Looping: {mps["loop"]}, '
         + (f'Fade Duration: {mps["fadeDuration"]}s, ' if mps["loop"] == "fade" else "")
@@ -622,8 +623,8 @@ def makeClip(cs: ClipperState, markerPairIndex: int) -> Optional[Dict[str, Any]]
             ffmpegVidstabdetect += f" -speed 5"
 
         # Remove "-hwaccel_output_format cuda" from vidstabdetect filter string if present
-        ffmpegVidstabdetect = ffmpegVidstabdetect.replace("-hwaccel_output_format cuda", "")
-        ffmpegVidstabdetect = ffmpegVidstabdetect.replace(f"-c:v {mps["videoCodec"]}", "")
+        # ffmpegVidstabdetect = ffmpegVidstabdetect.replace("-hwaccel_output_format cuda", "")
+        # ffmpegVidstabdetect = ffmpegVidstabdetect.replace(f"-c:v {mps["videoCodec"]}", "")
         ffmpegVidstabdetect += f' -f null "-"'
         ffmpegVidstabtransform += f' "{mp["filePath"]}"'
         ffmpegCommands: List[str] = [ffmpegVidstabdetect, ffmpegVidstabtransform]
