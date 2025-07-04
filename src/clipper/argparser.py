@@ -793,7 +793,7 @@ def getVidstabPreset(level: int) -> DictStrAny:
             "enabled": True,
             "shakiness": 2,
             "zoomspeed": 0.05,
-            "smoothing": 2,
+            "smoothing": 1,
             "desc": "Very Weak",
         }
     elif level == 2:
@@ -801,7 +801,7 @@ def getVidstabPreset(level: int) -> DictStrAny:
             "enabled": True,
             "shakiness": 4,
             "zoomspeed": 0.1,
-            "smoothing": 4,
+            "smoothing": 3,
             "desc": "Weak",
         }
     elif level == 3:
@@ -817,7 +817,7 @@ def getVidstabPreset(level: int) -> DictStrAny:
             "enabled": True,
             "shakiness": 8,
             "zoomspeed": 0.3,
-            "smoothing": 10,
+            "smoothing": 9,
             "desc": "Strong",
         }
     elif level == 5:
@@ -825,16 +825,8 @@ def getVidstabPreset(level: int) -> DictStrAny:
             "enabled": True,
             "shakiness": 10,
             "zoomspeed": 0.4,
-            "smoothing": 16,
+            "smoothing": 12,
             "desc": "Very Strong",
-        }
-    elif level == 6:
-        vidstabPreset = {
-            "enabled": True,
-            "shakiness": 10,
-            "zoomspeed": 0.5,
-            "smoothing": 22,
-            "desc": "Strongest",
         }
     return vidstabPreset
 

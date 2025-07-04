@@ -5,7 +5,6 @@ import shlex
 import subprocess
 import sys
 from fractions import Fraction
-from math import pi
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Set, Tuple
 
@@ -34,7 +33,6 @@ from clipper.ffmpeg_filter import (
     getSubsFilter,
     getZoomPanFilter,
     isHardwareAcceleratedVideoCodec,
-    videoStabilizationGammaFixFilter,
     wrapVideoFilterForHardwareAcceleration,
 )
 from clipper.platforms import getFfmpegHeaders
@@ -444,7 +442,7 @@ def makeClip(cs: ClipperState, markerPairIndex: int) -> Optional[Dict[str, Any]]
     if shouldDedupe:
         logger.info("Duplicate frames will be removed.")
         video_filter += f",mpdecimate"
-        video_filter += f",setpts=N/FR/TB"
+        video_filter += f",setpts=N/FR/TB" # probably should not be set here
 
     video_filter += f',{mp["cropFilter"]}'
 
@@ -556,7 +554,9 @@ def makeClip(cs: ClipperState, markerPairIndex: int) -> Optional[Dict[str, Any]]
         vidstab = mps["videoStabilization"]
         shakyPath = f"{cp.clipsPath}/shaky"
         os.makedirs(shakyPath, exist_ok=True)
-        transformPath = f'{shakyPath}/{mp["fileNameStem"]}.trf'
+        transformPath = str(f'{shakyPath}/{mp["fileNameStem"]}.json')
+        # Escape backslashes for ffmpeg compatibility (especially on Windows)
+        # transformPath = transformPath.replace("\\", "\\\\")
 
         if not containsValidCharsForVidStab(transformPath):
             # TODO: Write titleSuffix to text file in safe temp work dir for reverse lookup from titleSuffix to hash
@@ -570,49 +570,28 @@ def makeClip(cs: ClipperState, markerPairIndex: int) -> Optional[Dict[str, Any]]
                 f"Using temp directory for intermediate video stabilization transform files: '{safeShakyPath}'.",
             )
             os.makedirs(safeShakyPath, exist_ok=True)
-            transformPath = f"{safeShakyPath}/{markerPairIndex+1}.trf"
+            transformPath = str(f"{safeShakyPath}/{markerPairIndex+1}.json")
 
-        shakyClipPath = f'{shakyPath}/{mp["fileNameStem"]}-shaky.{mp["fileNameSuffix"]}'
-
-        video_filter += "[shaky];[shaky]"
-        vidstabdetectFilter = (
-            video_filter
-            + f"""vidstabdetect=result='{transformPath}':shakiness={vidstab["shakiness"]}"""
-        )
-
-        vidstabdetectFilter = videoStabilizationGammaFixFilter(vidstabdetectFilter)
-
-        if mps["videoStabilizationMaxAngle"] < 0:
-            mps["videoStabilizationMaxAngle"] = -1
-        else:
-            mps["videoStabilizationMaxAngle"] *= pi / 180
-        if mps["videoStabilizationMaxShift"] < 0:
-            mps["videoStabilizationMaxShift"] = -1
+        vidstabdetectFilter = f"{video_filter},tvai_cpe=model=cpe-1:filename={transformPath}:device=0"
 
         vidstabtransformFilter = (
             video_filter
-            + f"""vidstabtransform=input='{transformPath}':smoothing={vidstab["smoothing"]}"""
-            + f""":maxangle={mps["videoStabilizationMaxAngle"]}"""
-            + f""":maxshift={mps["videoStabilizationMaxShift"]}"""
+            + f""",tvai_stb=model=ref-2:filename='{transformPath}':smoothness={vidstab["smoothing"]}"""
+            + f""":rst=0:wst=0:cache=128:dof=1111:ws=32:full=0"""
+            + f""":roll=0:reduce=0:device=0:vram=1:instances=1"""
         )
-
-        if mps["videoStabilizationDynamicZoom"]:
-            vidstabtransformFilter += f':optzoom=2:zoomspeed={vidstab["zoomspeed"]}'
-
-        vidstabtransformFilter = videoStabilizationGammaFixFilter(vidstabtransformFilter)
 
         if "minterpMode" in mps and mps["minterpMode"] != "None":
             vidstabtransformFilter += getMinterpFilter(mp, mps)
+
+        # every time tvai filter is engaged, we need to convert back to yuv444p because Topaz's native format is 10 bit which is not supported by h264_nvenc
+        vidstabtransformFilter += ",format=yuv444p"
 
         if mps["loop"] != "none":
             vidstabdetectFilter += loop_filter
             vidstabtransformFilter += loop_filter
 
         if isHardwareAcceleratedVideoCodec(mps["videoCodec"]):
-            vidstabdetectFilter = wrapVideoFilterForHardwareAcceleration(
-                mps["videoCodec"],
-                vidstabdetectFilter,
-            )
             vidstabtransformFilter = wrapVideoFilterForHardwareAcceleration(
                 mps["videoCodec"],
                 vidstabtransformFilter,
@@ -627,10 +606,10 @@ def makeClip(cs: ClipperState, markerPairIndex: int) -> Optional[Dict[str, Any]]
                 f.write(vidstabdetectFilter)
             with open(filterPathPass2, "w", encoding="utf-8") as f:
                 f.write(vidstabtransformFilter)
-            ffmpegVidstabdetect = ffmpegCommand + f' -filter_script:v "{filterPathPass1}" '
+            ffmpegVidstabdetect = getFfmpegCommandVidstab(cp, inputs, mp, mps) + f' -filter_script:v "{filterPathPass1}" '
             ffmpegVidstabtransform = ffmpegCommand + f' -filter_script:v "{filterPathPass1}" '
         else:
-            ffmpegVidstabdetect = ffmpegCommand + f'-vf "{vidstabdetectFilter}" '
+            ffmpegVidstabdetect = getFfmpegCommandVidstab(cp, inputs, mp, mps) + f'-vf "{vidstabdetectFilter}" '
             ffmpegVidstabtransform = ffmpegCommand + f'-vf "{vidstabtransformFilter}" '
 
         ffmpegVidstabdetect += f" -y "
@@ -642,8 +621,11 @@ def makeClip(cs: ClipperState, markerPairIndex: int) -> Optional[Dict[str, Any]]
         else:
             ffmpegVidstabdetect += f" -speed 5"
 
-        ffmpegVidstabdetect += f' "{shakyClipPath}"'
-        ffmpegVidstabtransform += f' -speed {mps["encodeSpeed"]} "{mp["filePath"]}"'
+        # Remove "-hwaccel_output_format cuda" from vidstabdetect filter string if present
+        ffmpegVidstabdetect = ffmpegVidstabdetect.replace("-hwaccel_output_format cuda", "")
+        ffmpegVidstabdetect = ffmpegVidstabdetect.replace(f"-c:v {mps["videoCodec"]}", "")
+        ffmpegVidstabdetect += f' -f null "-"'
+        ffmpegVidstabtransform += f' "{mp["filePath"]}"'
         ffmpegCommands: List[str] = [ffmpegVidstabdetect, ffmpegVidstabtransform]
 
     if not vidstabEnabled:
@@ -670,14 +652,14 @@ def makeClip(cs: ClipperState, markerPairIndex: int) -> Optional[Dict[str, Any]]
 
         if not mps["twoPass"]:
             ffmpegCommand += overwriteArg
-            ffmpegCommand += f' -speed {mps["encodeSpeed"]} "{mp["filePath"]}"'
+            ffmpegCommand += f' "{mp["filePath"]}"'
 
             ffmpegCommands = [ffmpegCommand]
         else:
             ffmpegPass1 = ffmpegCommand + f" -y -pass 1 {os.devnull}"
             ffmpegPass2 = (
                 ffmpegCommand
-                + f' {overwriteArg} -speed {mps["encodeSpeed"]} -pass 2 "{mp["filePath"]}"'
+                + f' {overwriteArg} -pass 2 "{mp["filePath"]}"'
             )
 
             ffmpegCommands = [ffmpegPass1, ffmpegPass2]
@@ -740,6 +722,25 @@ def getFfmpegCommandWithoutVideoFilter(
             ),
             f"-af {audio_filter}" if mps["audio"] else "-an",
             video_codec_output_args,
+            f'{mps["extraFfmpegArgs"]}',
+            " ",
+        ),
+    )
+
+
+def getFfmpegCommandVidstab(
+    cp: ClipperPaths,
+    inputs: str,
+    mp: DictStrAny,
+    mps: DictStrAny,
+) -> str:
+    return " ".join(
+        (
+            cp.ffmpegPath,
+            f"-hide_banner",
+            getFfmpegHeaders(mps["platform"]),
+            inputs,
+            f"-benchmark",
             f'{mps["extraFfmpegArgs"]}',
             " ",
         ),
