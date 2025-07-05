@@ -1,4 +1,5 @@
 import argparse
+import shlex
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, OrderedDict, Tuple
@@ -755,11 +756,12 @@ def getArgs() -> Tuple[Dict[str, Any], List[str], List[str], List[str], Dict[str
         argFilePath = Path(argFile)
         if argFilePath.is_file():
             with Path.open(argFilePath, encoding="utf-8") as f:
-                lines = [line.lstrip() for line in f.readlines()]
-                lines = "".join([line for line in lines if not line.startswith("#")])
-                args = lines.split()
-                argsFromArgFiles += args
-                argsFromArgFilesMap[argFile] = args
+                for raw_line in f:
+                    stripped_line = raw_line.strip()
+                    if stripped_line and not stripped_line.startswith("#"):
+                        args.extend(shlex.split(stripped_line))
+            argsFromArgFiles += args
+            argsFromArgFilesMap[argFile] = args
 
     argv = argsFromArgFiles + argv
     args, unknown = parser.parse_known_args(argv)

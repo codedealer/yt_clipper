@@ -111,6 +111,8 @@ def prepareTopazFFmpeg(cs: ClipperState) -> None:
 
     os.environ["TVAI_MODEL_DATA_DIR"] = model_data_dir
     os.environ["TVAI_MODEL_DIR"] = model_dir
+    logger.debug(f"Topaz model data directory set to: {model_data_dir}")
+    logger.debug(f"Topaz model directory set to: {model_dir}")
     # CUDA optimizations
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # Adjust as needed for your setup
     os.environ["CUDA_DEVICE_MAX_CONNECTIONS"] = "2"
