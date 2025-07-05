@@ -115,16 +115,9 @@ export namespace Tooltips {
     `;
 
   export const minterpModeTooltip = stripIndent`
-    Motion interpolation (minterp for short) is sometimes called optical flow, super slowmo, or just interpolation.
-    Motion interpolation is typically used to increase fps and achieve smoother slow motion.
-    Motion interpolation is in Numeric mode by default. This requires a valid fps (10-120) input to work.
-    A higher fps value requires more resources and time to encode.
-    Motion interpolation can and will introduce artifacting (visual glitches).
-    Artifacting increases with the speed and complexity of the video.
-    In MaxSpeed mode, motion interpolation targets the fps of the highest speed seen in the dynamic speed chart.
-    This helps smooth out motion when using dynamic speed with reasonable resource efficiency.
-    In VideoFPS mode, motion interpolation targets the fps of the input video.
-    MaxSpeedx2 and VideoFPSx2 modes double the target fps from the previous two modes.
+    Motion interpolation is done with AI models to add interpolated frames to the video.
+    VideoFPS targets the effective FPS of the input video. Fractions of the video's speed not divisible by 2 may not be supported by some providers.
+    x2slow, x4slow, and x8slow modes will double, quadruple, or octuple the input video duration respectively while keeping the target's FPS.
     `;
 
   export const minterpFPSTooltip = stripIndent`
@@ -181,5 +174,13 @@ export namespace Tooltips {
     The duration to cut from the beginning and end of the output video to produce the crossfade for fade loops.
     Will be clamped to a minimum of 0.1 seconds and a maximum of 40% of the output clip duration.
     Only applicable when loop is set to fade.
+    `;
+
+  export const vidstabRollingShutterTooltip = stripIndent`
+    Enable rolling shutter correction to reduce wobble and skew in the video.
+    `;
+  export const vidstabJitteryMotionTooltip = stripIndent`
+    Corrects parallax distortion and jittery motion in the video.
+    Runs Chronos Fast model for each pass (default is 2) so it will be significantly slower.
     `;
 }

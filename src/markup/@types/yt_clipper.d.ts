@@ -25,6 +25,8 @@ interface Settings {
   audio?: boolean;
   videoStabilization?: VideoStabilization;
   videoStabilizationDynamicZoom?: boolean;
+  videoStabilizationRollingShutter?: boolean;
+  videoStabilizationJitteryMotion?: boolean;
   minterpMode?: string | boolean;
   minterpProvider?: 'RIFE' | 'TopazCHF' | 'TopazApollo' | 'TopazAion';
   minterpFPS?: number;
@@ -90,6 +92,8 @@ interface MarkerPairOverrides {
   audio?: boolean;
   videoStabilization?: VideoStabilization;
   videoStabilizationDynamicZoom?: boolean;
+  videoStabilizationRollingShutter?: boolean;
+  videoStabilizationJitteryMotion?: boolean;
   minterpMode?: string | boolean;
   minterpProvider?: string;
   loop?: Loop;

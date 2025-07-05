@@ -575,11 +575,19 @@ def makeClip(cs: ClipperState, markerPairIndex: int) -> Optional[Dict[str, Any]]
 
         vidstabdetectFilter = f"{video_filter},tvai_cpe=model=cpe-1:filename={transformPath}:device=0"
 
+        rollingShutter = 1 if mps.get("videoStabilizationRollingShutter") else 0
+        jitteryMotionPasses = 2 if mps.get("videoStabilizationJitteryMotion") else 0
+        if rollingShutter == 1 and mp["isZoomPanCrop"]:
+            logger.warning(
+                "Rolling shutter compensation is enabled but the marker pair has a zoom pan crop. "
+                + "This currently corrupts the render, rolling shutter will be disabled.",
+            )
+            rollingShutter = 0
         vidstabtransformFilter = (
             video_filter
             + f""",tvai_stb=model=ref-2:filename='{transformPath}':smoothness={vidstab["smoothing"]}"""
             + f""":rst=0:wst=0:cache=128:dof=1111:ws=32:full=0"""
-            + f""":roll=0:reduce=0:device=0:vram=1:instances=1"""
+            + f""":roll={rollingShutter}:reduce={jitteryMotionPasses}:device=0:vram=1:instances=1"""
         )
 
         if "minterpMode" in mps and mps["minterpMode"] != "None":

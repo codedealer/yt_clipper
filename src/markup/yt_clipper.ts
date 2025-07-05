@@ -2075,7 +2075,8 @@ async function loadytClipper() {
     const minterpProvider = settings.minterpProvider;
     const vidstab = settings.videoStabilization;
     const vidstabDesc = vidstab ? vidstab.desc : null;
-    const vidstabDynamicZoomEnabled = settings.videoStabilizationDynamicZoom;
+    const videoStabilizationRollingShutter = settings.videoStabilizationRollingShutter;
+    const videoStabilizationJitteryMotion = settings.videoStabilizationJitteryMotion;
     const markerPairMergelistDurations = getMarkerPairMergeListDurations();
     const globalEncodeSettingsEditorDisplay = isExtraSettingsEditorEnabled ? 'block' : 'none';
     globalSettingsEditorDiv.setAttribute('id', 'settings-editor-div');
@@ -2233,14 +2234,20 @@ async function loadytClipper() {
             <option ${vidstabDesc === 'Very Strong' ? 'selected' : ''}>Very Strong</option>
           </select>
         </div>
-        <div title="${Tooltips.dynamicZoomTooltip}">
-          <span>Dynamic Zoom</span>
-          <select id="video-stabilization-dynamic-zoom-input">
-            <option value="Default" ${
-              vidstabDynamicZoomEnabled == null ? 'selected' : ''
-            }>(Disabled)</option>
-            <option ${vidstabDynamicZoomEnabled === false ? 'selected' : ''}>Disabled</option>
-            <option ${vidstabDynamicZoomEnabled ? 'selected' : ''}>Enabled</option>
+        <div title="${Tooltips.vidstabRollingShutterTooltip}">
+          <span>Rolling Shutter</span>
+          <select id="video-stabilization-rolling-shutter-input">
+            <option value="Default" ${videoStabilizationRollingShutter == null ? 'selected' : ''}>(Disabled)</option>
+            <option ${videoStabilizationRollingShutter === false ? 'selected' : ''}>Disabled</option>
+            <option ${videoStabilizationRollingShutter === true ? 'selected' : ''}>Enabled</option>
+          </select>
+        </div>
+        <div title="${Tooltips.vidstabJitteryMotionTooltip}">
+          <span>Jittery Motion</span>
+          <select id="video-stabilization-jittery-motion-input">
+            <option value="Default" ${videoStabilizationJitteryMotion == null ? 'selected' : ''}>(Disabled)</option>
+            <option ${videoStabilizationJitteryMotion === false ? 'selected' : ''}>Disabled</option>
+            <option ${videoStabilizationJitteryMotion === true ? 'selected' : ''}>Enabled</option>
           </select>
         </div>
       </div>
@@ -2265,7 +2272,8 @@ async function loadytClipper() {
       ['minterp-mode-input', 'minterpMode', 'inheritableString'],
       ['minterp-provider-input', 'minterpProvider', 'inheritableString'],
       ['video-stabilization-input', 'videoStabilization', 'preset'],
-      ['video-stabilization-dynamic-zoom-input', 'videoStabilizationDynamicZoom', 'ternary'],
+      ['video-stabilization-rolling-shutter-input', 'videoStabilizationRollingShutter', 'ternary'],
+      ['video-stabilization-jittery-motion-input', 'videoStabilizationJitteryMotion', 'ternary'],
       ['loop-input', 'loop', 'inheritableString'],
       ['fade-duration-input', 'fadeDuration', 'number'],
     ];
@@ -2547,7 +2555,8 @@ async function loadytClipper() {
     const vidstabDescGlobal = settings.videoStabilization
       ? `(${settings.videoStabilization.desc})`
       : '(Disabled)';
-    const vidstabDynamicZoomEnabled = overrides.videoStabilizationDynamicZoom;
+    const videoStabilizationRollingShutter = overrides.videoStabilizationRollingShutter ?? settings.videoStabilizationRollingShutter;
+    const videoStabilizationJitteryMotion = overrides.videoStabilizationJitteryMotion ?? settings.videoStabilizationJitteryMotion;
     const minterpMode = overrides.minterpMode ?? settings.minterpMode;
     const minterpProvider = overrides.minterpProvider ?? settings.minterpProvider;
     const overridesEditorDisplay = isExtraSettingsEditorEnabled ? 'block' : 'none';
@@ -2660,9 +2669,9 @@ async function loadytClipper() {
         </div>
         </div>
         <div class="settings-editor-input-div multi-input-div" title="${Tooltips.vidstabTooltip}">
-        <div>
-          <span>Stabilization</span>
-          <select id="video-stabilization-input">
+          <div>
+            <span>Stabilization</span>
+            <select id="video-stabilization-input">
               <option value="Inherit" ${
                 vidstabDesc == null ? 'selected' : ''
               }>${vidstabDescGlobal}</option>
@@ -2676,14 +2685,24 @@ async function loadytClipper() {
               <option ${vidstabDesc === 'Very Strong' ? 'selected' : ''}>Very Strong</option>
             </select>
           </div>
-          <div title="${Tooltips.dynamicZoomTooltip}">
-            <span>Dynamic Zoom</span>
-            <select id="video-stabilization-dynamic-zoom-input">
-              <option value="Default" ${
-                vidstabDynamicZoomEnabled == null ? 'selected' : ''
-              }>${ternaryToString(settings.videoStabilizationDynamicZoom)}</option>
-              <option ${vidstabDynamicZoomEnabled === false ? 'selected' : ''}>Disabled</option>
-              <option ${vidstabDynamicZoomEnabled ? 'selected' : ''}>Enabled</option>
+          <div title="${Tooltips.vidstabRollingShutterTooltip}">
+            <span>Rolling Shutter</span>
+            <select id="video-stabilization-rolling-shutter-input">
+              <option value="Default" ${videoStabilizationRollingShutter == null ? 'selected' : ''}>${
+                ternaryToString(settings.videoStabilizationRollingShutter)
+              }</option>
+              <option ${videoStabilizationRollingShutter === false ? 'selected' : ''}>Disabled</option>
+              <option ${videoStabilizationRollingShutter === true ? 'selected' : ''}>Enabled</option>
+            </select>
+          </div>
+          <div title="${Tooltips.vidstabJitteryMotionTooltip}">
+            <span>Jittery Motion</span>
+            <select id="video-stabilization-jittery-motion-input">
+              <option value="Default" ${videoStabilizationJitteryMotion == null ? 'selected' : ''}>${
+                ternaryToString(settings.videoStabilizationJitteryMotion)
+              }</option>
+              <option ${videoStabilizationJitteryMotion === false ? 'selected' : ''}>Disabled</option>
+              <option ${videoStabilizationJitteryMotion === true ? 'selected' : ''}>Enabled</option>
             </select>
           </div>
         </div>
@@ -2735,7 +2754,8 @@ async function loadytClipper() {
       ['minterp-mode-input', 'minterpMode', 'inheritableString'],
       ['minterp-provider-input', 'minterpProvider', 'inheritableString'],
       ['video-stabilization-input', 'videoStabilization', 'preset'],
-      ['video-stabilization-dynamic-zoom-input', 'videoStabilizationDynamicZoom', 'ternary'],
+      ['video-stabilization-rolling-shutter-input', 'videoStabilizationRollingShutter', 'ternary'],
+      ['video-stabilization-jittery-motion-input', 'videoStabilizationJitteryMotion', 'ternary'],
       ['loop-input', 'loop', 'inheritableString'],
       ['fade-duration-input', 'fadeDuration', 'number'],
     ];
@@ -3021,14 +3041,14 @@ async function loadytClipper() {
         desc: 'Very Weak',
         enabled: true,
         shakiness: 2,
-        smoothing: 2,
+        smoothing: 1,
         zoomspeed: 0.05,
       },
       Weak: {
         desc: 'Weak',
         enabled: true,
         shakiness: 4,
-        smoothing: 4,
+        smoothing: 3,
         zoomspeed: 0.1,
       },
       Medium: {
@@ -3042,22 +3062,15 @@ async function loadytClipper() {
         desc: 'Strong',
         enabled: true,
         shakiness: 8,
-        smoothing: 10,
+        smoothing: 9,
         zoomspeed: 0.3,
       },
       'Very Strong': {
         desc: 'Very Strong',
         enabled: true,
         shakiness: 10,
-        smoothing: 16,
+        smoothing: 12,
         zoomspeed: 0.4,
-      },
-      Strongest: {
-        desc: 'Strongest',
-        enabled: true,
-        shakiness: 10,
-        smoothing: 22,
-        zoomspeed: 0.5,
       },
     },
     denoise: {
